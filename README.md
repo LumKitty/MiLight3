@@ -1,7 +1,7 @@
 # MiLight3
-Python 2.7 control class for controlling MiLight-3.0 (Limitless V6.0) lights
-Edit default settings in milightbox.py
-Requires PyEphem for the IsDay function. `pip install ephem`
+Python 2.7 control class for controlling MiLight-3.0 (Limitless V6.0) lights.  
+Edit default settings in milightbox.py  
+Requires PyEphem for the IsDay function `pip install ephem` or just remove that whole function if you don't plan on using it.
 
 # Usage:
 ```python
