@@ -1,6 +1,7 @@
 # MiLight3
-Python control class for controlling MiLight-3.0 (Limitless V6.0) lights
+Python 2.7 control class for controlling MiLight-3.0 (Limitless V6.0) lights
 Edit default settings in milightbox.py
+Requires PyEphem for the IsDay function. `pip install ephem`
 
 # Usage:
 ```python
@@ -28,4 +29,6 @@ milight.fadetocolour(1,255,0,100) # Smoothly fade zone 1 to pure red at 100% bri
 milight.fadetowhite(1,50,100)     # Smoothly fade zone 1 to cold white at 50% brightness
 milight.fadeoff(1)                # Smoothly fade out zone 1 then turn it off
 milight.fadetotemp(1,0)           # Smoothly fade zone 1 to warm white
+
+print milight.IsDay()             # True if the sun hasn't set yet
 ```
