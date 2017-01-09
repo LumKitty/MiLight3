@@ -144,6 +144,10 @@ class milight3light:    # Commands common to rgbww and iboxlight
             self.fadeval(self._val-1,0,speed)
         self.off()
 
+    def hue(self,hue):
+        self.rawon()
+        self.val(hue)
+
     def brightness(self,bri):
         self.rawon()
         self.val(bri)
@@ -297,6 +301,14 @@ class rgbww(milight3light):
         if self._hue != -1:
             self.val(self._val-1)
             self._hue = -1
+
+    def saturation(self,sat):
+        self.rawon()
+        self.val(sat)
+
+    def temperature(self,temp):
+        self.rawon()
+        self.tmp(temp)
 
     def colour(self,hue,sat,val):
         self.rawon()
