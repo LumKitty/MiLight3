@@ -1,7 +1,7 @@
 # MiLight3
 Python 2.7 control class for controlling MiLight-3.0 (Limitless V6.0) lights.  
-Edit default settings in milightbox.py for IP, PORT speed etc.
-I'll get around to it as I'm going to use it as a visual doorbell at some point.
+Edit default settings in milightbox.py for IP, PORT speed etc.  
+Zone support should be working. Internal iBox light support is still very broken
 
 # Usage:
 ```python
