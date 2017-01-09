@@ -30,8 +30,11 @@ milight.zone[1].fadetowhite(50,100)     # Smoothly fade zone 1 to cold white at 
 milight.zone[1].fadeoff()               # Smoothly fade out zone 1 then turn it off
 milight.zone[1].fadetotemp(0)           # Smoothly fade zone 1 to warm white
 
-# iBox light support
-# Same commands as above only in the form milight.ibox.off() 
-# Not all make sense (eg. saturation) and some don't even work as the documentation is wrong
-# Please don't consider iBox support ready for production use!
+milight.close()	                   # Write out the current values to the status file - must call this before
+                                   # exitting as it's used for saving bulb state information
 ```
+# iBox light support
+Same commands as above only in the form milight.ibox.off() 
+Not all make sense (eg. saturation) and some don't even work as the documentation is wrong
+Please don't consider iBox support ready for production use, in fact don't use it at all!
+
