@@ -1,22 +1,26 @@
-import socket,sys,time,os,ephem;
+import socket,sys,time,os;
 
 # Some configuration settings
 # iBox IP (and UDP port 5987)
-IP = "192.168.0.14"
-PORT = 5987
 UDP_PORT_RECEIVE = 55054
 UDP_TIMES_TO_SEND_COMMAND = 2
-SLEEP_TIME = 0.02
+IP            = "192.168.0.16"
+SLEEP_TIME    = 0.02
 DEFAULT_SPEED = 1
-STATUSFILE = "/tmp/milight.dat"
+STATUSFILE    = "./milight"
+STATUSEXT     = ".dat"
+DEBUG = 1
 
-LATTITUDE = -3.24
-LONGITUDE = 51.41
-ELEVATION = 0
+def debugprint(message):
+    if DEBUG == 1:
+        print message
 
+def debugprintnolf(message):
+    if DEBUG == 1:
+        print message,
 
 class MiLight3:
-    def __init__(self, ip=IP, port=PORT):
+    def __init__(self, ip=IP, port=5987):
         MESSAGE = "20 00 00 00 16 02 62 3A D5 ED A3 01 AE 08 2D 46 61 41 A7 F6 DC AF D3 E6 00 00 1E"
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -29,42 +33,74 @@ class MiLight3:
         sockreceive.bind(('', UDP_PORT_RECEIVE))
 
         data, addr = sockreceive.recvfrom(65536)
-        ##print "[DEBUG]received message:", data.encode('hex') 
+        debugprint("received message: "+data.encode('hex'))
         sockreceive.close()
         response = str(data.encode('hex'))
         iboxId1 = response[38:40]
         iboxId2 = response[40:42]
-        ##print "[DEBUG]requesting iBox to execute command", iboxId1
-        ##print "[DEBUG]requesting iBox to execute command", iboxId2
+        debugprint("requesting iBox to execute command "+iboxId1)
+        debugprint("requesting iBox to execute command "+iboxId2)
 
         self.header = "80 00 00 00 11 " + iboxId1 + " " + iboxId2 + " 00 SN 00 "
         self.seq = 0
         self.ip = ip
         self.port = port
-        self._hue = [255,-1,-1,-1,-1]
-        self._sat = [255, 0, 0, 0, 0]
-        self._val = [255,-1,-1,-1,-1]
-        self._tmp = [255, 0, 0, 0, 0]
+        self.zone = [0]
+        self.statusfilename = STATUSFILE+"3-"+self.ip+STATUSEXT
+        debugprint("Status file: "+self.statusfilename)
         
-	try:
-            if os.path.isfile(STATUSFILE):
-                statusfile = open(STATUSFILE,"r")
-                for n in range(1,5):
-                    self._hue[n] = int(statusfile.readline())
-                    self._sat[n] = int(statusfile.readline())
-                    self._val[n] = int(statusfile.readline())
-                    self._tmp[n] = int(statusfile.readline())
-                statusfile.close()
-        except:
-            print "Error reading saved milight data"
+        if os.path.isfile(self.statusfilename):
+            statusfile = open(self.statusfilename,"r")
+            for n in range(1,5):
+                try:
+                    if statusfile.readline().strip() == "# Zone "+str(n):
+                        hue = int(statusfile.readline().strip())
+                        sat = int(statusfile.readline().strip())
+                        val = int(statusfile.readline().strip())
+                        tmp = int(statusfile.readline().strip())
 
-    def __del__(self):
-        statusfile = open(STATUSFILE,"w")
+                        debugprint("Statusfile zone "+str(n)+" valid - using stored values")
+                        self.zone.append(rgbww(self,n,hue,sat,val,tmp))
+                    else:
+                        debugprint("Statusfile zone "+str(n)+" invalid - using defaults")
+                        self.zone.append(rgbww(self,n))
+                except Exception as ex:
+                    debugprint("Error reading zone "+str(n)+" - using defaults")
+                    debugprint(str(ex))
+                    self.zone.append(rgbww(self,n))
+            try:
+                if statusfile.readline().strip() == "# iBox Light":
+                    hue = int(statusfile.readline().strip())
+                    val = int(statusfile.readline().strip())
+                    debugprint("Statusfile iBox valid - using stored values")
+                    self.ibox = iboxlight(self,hue,val)
+                else:
+                    debugprint("Statusfixe iBox invalid - using defaults")
+                    self.ibox = iboxlight(self)
+            except Exception as ex:
+                debugprint("Error reading iBox - using defaults")
+                debugprint(str(ex))
+                self.ibox = iboxlight(self)
+
+            statusfile.close()
+        else:
+            debugprint("No statusfile - using defaults")
+            for n in range(1,5):
+                self.zone.append(rgbww(self,n))
+            self.ibox=iboxlight(self)
+
+    def close(self):
+        debugprint("Writing: "+self.statusfilename)
+        statusfile = open(self.statusfilename,"w")
         for n in range(1,5):
-            statusfile.writelines(str(self._hue[n])+"\n")
-            statusfile.writelines(str(self._sat[n])+"\n")
-            statusfile.writelines(str(self._val[n])+"\n")
-            statusfile.writelines(str(self._tmp[n])+"\n")
+            statusfile.writelines("# Zone "+str(n)+"\n")
+            statusfile.writelines(str(self.zone[n]._hue)+"\n")
+            statusfile.writelines(str(self.zone[n]._sat)+"\n")
+            statusfile.writelines(str(self.zone[n]._val)+"\n")
+            statusfile.writelines(str(self.zone[n]._tmp)+"\n")
+        statusfile.writelines("# iBox Light\n")
+        statusfile.writelines(str(self.ibox._hue)+"\n")
+        statusfile.writelines(str(self.ibox._val)+"\n")
         statusfile.close()
 
     def rawsend(self, command):
@@ -74,127 +110,25 @@ class MiLight3:
         for x in range(0, UDP_TIMES_TO_SEND_COMMAND):
             socksendto.sendto(bytearray.fromhex(command), (self.ip, self.port))
         socksendto.close()
+        debugprint("Sent to IP: "+self.ip)
 
-    def send(self, command, zone):
-        command = command + " " + format(zone, "02X")
+class milight3light:    # Commands common to rgbww and iboxlight
+    def send(self, command):
+        command = command + " " + format(self.zone, "02X")
         checksum = 0
         for n in bytearray.fromhex(command):
             checksum += n
         checksumhex = format(checksum, "04X")
-        ##print "[DEBUG] Checksum:", checksumhex
         command = command + " 00 " + format(checksum, "04X")[2:]
-        command = self.header.replace("SN", format(self.seq, "02X")) + command
-        ##print "[DEBUG]sending message to the smart bulbs:", command
-        self.rawsend(command)
-        self.seq += 1
-        if (self.seq >= 255):
-            self.seq = 0
-        ##print "[DEBUG]message(s) sent!"
+        command = self.parent.header.replace("SN", format(self.parent.seq, "02X")) + command
+        debugprintnolf(str(self.zone)+" sending message: "+ command)
+        self.parent.rawsend(command)
+        self.parent.seq += 1
+        if (self.parent.seq >= 255):
+            self.parent.seq = 0
         time.sleep(SLEEP_TIME)
-
-    def rawon(self, zone):
-        self.send("31 00 00 08 04 01 00 00 00", zone)
-
-    def rawoff(self,zone):
-        self.send("31 00 00 08 04 02 00 00 00", zone)
-
-    def hue(self,zone,hue):
-        if hue >=0 and hue <= 255:
-            val = " " + format(hue, "02X")[:2]
-            self.send("31 00 00 08 01"+val+val+val+val, zone)
-            if self._hue[zone] == -1:
-                self.val(zone,self._val[zone])
-            self._hue[zone] = hue
-        
-    def sat(self,zone,sat):
-        if sat >=0 and sat <= 100:
-            val = format(sat, "02X")[:2]
-            self.send("31 00 00 08 02 "+val+" 00 00 00", zone)
-            self._sat[zone] = sat
-
-    def val(self,zone,bri):
-        if bri >=0 and bri <= 100:
-            val = format(bri, "02X")[:2]
-            self.send("31 00 00 08 03 "+val+" 00 00 00", zone)
-            self._val[zone] = bri+1
-
-    def temp(self,zone,temp):
-        val = format(temp, "02X")[:2]
-        self.send("31 00 00 08 05 "+val+" 00 00 00", zone)
-        self._tmp[zone] = temp
-
-    def hsv(self,zone,hue,sat,val):
-        self.hue(zone,hue)
-        self.sat(zone,sat)
-        self.val(zone,val)
-
-    # Basic Commands
-
-    def on(self, zone, val=None):
-        self.rawon(zone)
-        if self._hue[zone] == -1:
-            self.temp(zone,self._tmp[zone])
-        else:
-            self.hue(zone,self._hue[zone])
-            self.sat(self._sat[zone])
-        if val is None:
-            if self._val[zone] == 0:
-                self.val(zone,0)
-            else:
-                self.val(abs(self._val[zone])-1)
-        else:
-            self.val(zone,val)
-        
-    def off(self,zone):
-        self.send("31 00 00 08 03 00 00 00 00", zone) # Set Brightness to zero before turn off
-        self.rawoff(zone)
-        self._val[zone] = -1
-        
-    def night(self,zone):
-        self.send("31 00 00 08 04 05 00 00 00", zone)
-        self._val[zone] = 0
-        self._hue[zone] = -1
-        self._tmp[zone] = 100
-
-    def white(self,zone):
-        self.rawon(zone)
-        self.send("31 00 00 08 05 64 00 00 00", zone)
-        if self._hue[zone] != -1:
-            self.val(zone,self._val[zone]-1)
-            self._hue[zone] = -1
-            
-    def brightness(self,zone,bri):
-        self.rawon(zone)
-        self.val(zone,bri)
-
-    def saturation(self,zone,sat):
-        self.rawon(zone)
-        self.sat(zone,sat)
-        
-    def temperature(self,zone,temp):
-        self.rawon(zone)
-        self.temp(zone,temp)
-
-    def colour(self,zone,hue,sat,val):
-        self.rawon(zone)
-        self.hsv(zone,hue,sat,val)
-
-    def status(self,zone=None):
-        if zone is None:
-            zones = range(1,4)
-        else:
-            zones = [zone]
-        for zone in zones:
-            print "Zone       :",zone
-            print "Hue        :",self._hue[zone]
-            print "Saturation : "+str(self._sat[zone])+"%"
-            print "Value      : "+str(self._val[zone]-1)+"%"
-            print "Temperature: "+str(self._tmp[zone])+"%"
-            print
-
-    # Fancy Internal Commands
-
-    def fadeval(self,zone,sourceval,destval,speed=DEFAULT_SPEED):
+   
+    def fadeval(self,sourceval,destval,speed=DEFAULT_SPEED):
         if sourceval != destval:
             if sourceval < destval:
                 speed = abs(speed)
@@ -202,10 +136,183 @@ class MiLight3:
                 speed = -abs(speed)
         
             for n in range(sourceval,destval,speed):
-                self.val(zone,n)
-        self.val(zone,destval)
+                self.val(n)
+        self.val(destval)
+   
+    def fadeoff(self,speed=DEFAULT_SPEED):
+        if self._val > 0:
+            self.fadeval(self._val-1,0,speed)
+        self.off()
 
-    def fadetemp(self,zone,sourcetemp,desttemp,speed=DEFAULT_SPEED):
+    def brightness(self,bri):
+        self.rawon()
+        self.val(bri)
+
+class iboxlight(milight3light):
+    def __init__(self, parent, hue=-1, val=0):
+        debugprint ("Initialising ibox: Hue: "+str(hue)+" Val: "+str(val))
+        self.parent = parent
+        self.zone = 1
+        self._hue = hue
+        self._val = val
+
+    def rawon(self):
+        self.send("31 00 00 00 03 03 00 00 00")
+
+    def rawoff(self):
+        self.send("31 00 00 00 03 04 00 00 00")
+
+    def hue(self,hue):
+        if hue >=0 and hue <= 255:
+            val = " " + format(hue, "02X")[:2]
+            self.send("31 00 00 00 01"+val+val+val+val)
+            if self._hue == -1:
+                self.val(zone,self._val)
+            self._hue = hue
+
+    def val(self,bri):
+        if bri >=0 and bri <= 100:
+            val = format(bri, "02X")[:2]
+            self.send("31 00 00 00 02 "+val+" 00 00 00")
+            self._val = bri+1
+
+    def on(self, val=None):
+        self.rawon()
+        if self._hue == -1:
+            self.temp(self._tmp)
+        else:
+            self.hue(self._hue)
+        if val is None:
+            if self._val == 0:
+                self.val(0)
+            else:
+                self.val(abs(self._val)-1)
+        else:
+            self.val(val)
+        
+    def off(self):
+        self.send("31 00 00 00 02 00 00 00 00") # Set Brightness to zero before turn off
+        self.rawoff()
+        self._val = -1
+
+    def white(self):
+        self.rawon()
+        self.send("31 00 00 00 05 00 00 00 00")
+        if self._hue != -1:
+            self.val(self._val-1)
+            self._hue = -1
+
+    def colour(self,hue,val=None):
+        self.rawon()
+        self.hue(hue)
+        if val is None:
+            self.val(self._val)
+        else:
+            self.val(val)
+
+    def status(self):
+        print "Zone       : iBox Light"
+        print "Hue        :",self._hue
+        print "Saturation : "+str(self._sat)+"%"
+        print
+        
+
+class rgbww(milight3light):
+    def __init__(self, parent, zone, hue=-1, sat=100, val=0, tmp=0):
+        debugprint ("Initialising zone: "+str(zone)+" Hue: "+str(hue)+" Sat: "+str(sat)+" Val: "+str(val)+" Temp: "+str(tmp))
+        self.parent = parent
+        self.zone = zone
+        self._hue = hue
+        self._sat = sat
+        self._val = val
+        self._tmp = tmp
+
+    def rawon(self):
+        self.send("31 00 00 08 04 01 00 00 00")
+
+    def rawoff(self):
+        self.send("31 00 00 08 04 02 00 00 00")
+
+    def hue(selfhue):
+        if hue >=0 and hue <= 255:
+            val = " " + format(hue, "02X")[:2]
+            self.send("31 00 00 08 01"+val+val+val+val)
+            if self._hue == -1:
+                self.val(zone,self._val)
+            self._hue = hue
+        
+    def sat(self,sat):
+        if sat >=0 and sat <= 100:
+            val = format(sat, "02X")[:2]
+            self.send("31 00 00 08 02 "+val+" 00 00 00")
+            self._sat = sat
+
+    def val(self,bri):
+        if bri >=0 and bri <= 100:
+            val = format(bri, "02X")[:2]
+            self.send("31 00 00 08 03 "+val+" 00 00 00")
+            self._val = bri+1
+
+    def temp(self,temp):
+        val = format(temp, "02X")[:2]
+        self.send("31 00 00 08 05 "+val+" 00 00 00")
+        self._tmp = temp
+
+    def hsv(self,hue,sat,val):
+        self.hue(hue)
+        self.sat(sat)
+        self.val(val)
+
+    # Basic Commands
+
+    def on(self, val=None):
+        self.rawon()
+        if self._hue == -1:
+            self.temp(self._tmp)
+        else:
+            self.hue(self._hue)
+            self.sat(self._sat)
+        if val is None:
+            if self._val == 0:
+                self.val(0)
+            else:
+                self.val(abs(self._val)-1)
+        else:
+            self.val(val)
+        
+    def off(self):
+        self.send("31 00 00 08 03 00 00 00 00") # Set Brightness to zero before turn off
+        self.rawoff()
+        self._val = -1
+        
+    def night(self):
+        self.send("31 00 00 08 04 05 00 00 00")
+        self._val = 0
+        self._hue = -1
+        self._tmp = 100
+
+    def white(self):
+        self.rawon()
+        self.send("31 00 00 08 05 64 00 00 00")
+        if self._hue != -1:
+            self.val(self._val-1)
+            self._hue = -1
+
+    def colour(self,hue,sat,val):
+        self.rawon()
+        self.hsv(hue,sat,val)
+
+    def status(self):
+        print "Zone       :",self.zone
+        print "Hue        :",self._hue
+        print "Saturation : "+str(self._sat)+"%"
+        print "Value      : "+str(self._val-1)+"%"
+        print "Temperature: "+str(self._tmp)+"%"
+        print
+
+    # Fancy Internal Commands
+
+    def fadetemp(self,sourcetemp,desttemp,speed=DEFAULT_SPEED):
         if sourcetemp != desttemp:
             if sourcetemp < desttemp:
                 speed = abs(speed)
@@ -213,17 +320,17 @@ class MiLight3:
                 speed = -abs(speed)
         
             for n in range(sourcetemp,desttemp,speed):
-                self.temp(zone,n)
-        self.temp(zone,desttemp)
+                self.temp(n)
+        self.temp(desttemp)
 
-    def fadewhite(self,zone,sourceval,destval,sourcetemp,desttemp,speed=DEFAULT_SPEED):
+    def fadewhite(self,sourceval,destval,sourcetemp,desttemp,speed=DEFAULT_SPEED):
         valsteps  = abs(sourceval-destval)
         tempsteps = abs(sourcetemp-desttemp)
         if tempsteps > valsteps:
             steps = tempsteps / speed
         else:
             steps = valsteps / speed
-        
+
         val=sourceval
         temp=sourcetemp
 
@@ -264,15 +371,13 @@ class MiLight3:
                     if temp > desttemp:
                         temp = desttemp
 
-            self.val(zone,val)
-            self.temp(zone,temp)
-           #print val,temp
+            self.val(val)
+            self.temp(temp)
 
-        self.val(zone,destval)
-        self.temp(zone,desttemp)
+        self.val(destval)
+        self.temp(desttemp)
 
-
-    def whitetohsv(self,zone,sourceval,desthue,destsat,destval, speed=DEFAULT_SPEED):
+    def whitetohsv(self,sourceval,desthue,destsat,destval, speed=DEFAULT_SPEED):
         valsteps = abs(sourceval-destval)
         satsteps = 100-destsat
         if satsteps > valsteps:
@@ -287,7 +392,7 @@ class MiLight3:
             valstep = speed
         else:
             valstep = 0
-        self.hsv(zone,desthue,sat,sourceval)
+        self.hsv(desthue,sat,sourceval)
         for n in range(0,steps):
             if sat > destsat:
                 sat -= speed
@@ -303,10 +408,10 @@ class MiLight3:
                     val += valstep
                     if val > destval:
                         val = destval
-            self.sat(zone,sat)
-            self.val(zone,val)
+            self.sat(sat)
+            self.val(val)
 
-    def hsvtowhite(self,zone,sourcehue,sourcesat,sourceval,destval,temp=None, speed=DEFAULT_SPEED):
+    def hsvtowhite(self,sourcehue,sourcesat,sourceval,destval,temp=None, speed=DEFAULT_SPEED):
         valsteps = abs(sourceval-destval)
         satsteps = 100-sourcesat
         if satsteps > valsteps:
@@ -321,7 +426,7 @@ class MiLight3:
             valstep = speed
         else:
             valstep = 0
-        self.hsv(zone,sourcehue,sat,val)
+        self.hsv(sourcehue,sat,val)
         for n in range(0,steps):
             if sat < 100:
                 sat += speed
@@ -337,14 +442,14 @@ class MiLight3:
                     val += valstep
                     if val > destval:
                         val = destval
-            self.sat(zone,sat)
-            self.val(zone,val)
-        self.white(zone)
-        self.val(zone,destval)
+            self.sat(sat)
+            self.val(val)
+        self.white()
+        self.val(destval)
         if temp is not None:
             self.temp(temp)
 
-    def hsvtohsv(self,zone,sourcehue,sourcesat,sourceval,desthue,destsat,destval,speed=DEFAULT_SPEED):
+    def hsvtohsv(self,sourcehue,sourcesat,sourceval,desthue,destsat,destval,speed=DEFAULT_SPEED):
         valsteps = abs(sourceval-destval)
         satsteps = abs(sourcesat-destsat)
         huesteps = abs(sourcehue-desthue)
@@ -391,7 +496,7 @@ class MiLight3:
 
         steps = steps / speed
 
-        self.hsv(zone,hue,sat,val)
+        self.hsv(hue,sat,val)
         for n in range(0,steps):
 
             if huestep < 0:
@@ -429,55 +534,33 @@ class MiLight3:
                     val += valstep
                     if val > destval:
                         val = destval
-            self.hsv(zone,hue,sat,val)
-           #print hue,sat,val
+            self.hsv(hue,sat,val)
 
 #   Fancy commands
 
-    def fadetocolour(self,zone,hue,sat,val,speed=DEFAULT_SPEED):
-        self.rawon(zone)
-        if self._hue[zone] == -1:
-            self.whitetohsv(zone,self._val[zone]-1,hue,sat,val,speed)
+    def fadetocolour(self,hue,sat,val,speed=DEFAULT_SPEED):
+        self.rawon()
+        if self._hue == -1:
+            self.whitetohsv(self._val-1,hue,sat,val,speed)
         else:
-            self.hsvtohsv(zone,self._hue[zone],self._sat[zone],self._val[zone]-1,hue,sat,val,speed)
+            self.hsvtohsv(self._hue,self._sat,self._val-1,hue,sat,val,speed)
 
-    def fadetowhite(self,zone,val,temp=None,speed=DEFAULT_SPEED):
-        self.rawon(zone)        
-        if self._hue[zone] == -1:
-            if self._val[zone] == 0:
-                self.rawon(zone)
-                self.temp(zone,100)
+    def fadetotemp(self,temp,speed=DEFAULT_SPEED):
+        if self._hue == -1 and self._val > 0:
+            self.fadetemp(self._tmp,temp,speed)
+        else:
+            self.hsvtowhite(self._hue,self._sat,self._val-1,val, temp, speed)
+
+    def fadetowhite(self,val,temp=None,speed=DEFAULT_SPEED):
+        self.rawon()        
+        if self._hue == -1:
+            if self._val == 0:
+                self.rawon()
+                self.temp(100)
             if temp is None:
-                self.fadeval(zone,self._val[zone],val,speed)
+                self.fadeval(self._val,val,speed)
             else:
-                self.fadewhite(zone,self._val[zone]-1,val,self._tmp[zone],temp,speed)
+                self.fadewhite(self._val-1,val,self._tmp,temp,speed)
         else:
-            self.hsvtowhite(zone,self._hue[zone],self._sat[zone],self._val[zone]-1,val, temp, speed)
+            self.hsvtowhite(self._hue,self._sat,self._val-1,val, temp, speed)
 
-    def fadeoff(self,zone,speed=DEFAULT_SPEED):
-        if self._val > 0:
-            self.fadeval(zone,self._val[zone]+1,0,speed)
-        self.off(zone)
-
-
-    def fadetotemp(self,zone,temp,speed=DEFAULT_SPEED):
-        if self._hue[zone] == -1 and self._val[zone] > 0:
-            self.fadetemp(zone,self._tmp[zone],temp,speed)
-        else:
-            self.hsvtowhite(zone,self._hue[zone],self._sat[zone],self._val[zone]-1,val, temp, speed)
-
-def IsDay(city=None):
-    pos = ephem.Observer()
-    pos.lat = str(LATTITUDE)
-    pos.long = str(LONGITUDE)
-    pos.elevation = ELEVATION
-
-    #pos.temp = 20            # current air temperature gathered manually
-    #pos.pressure = 1019.5    # current air pressure gathered manually
-
-    next_sunrise = pos.next_rising( ephem.Sun()).datetime()
-    next_sunset = pos.next_setting(ephem.Sun()).datetime()
-
-    result = next_sunset < next_sunrise
-
-    return result

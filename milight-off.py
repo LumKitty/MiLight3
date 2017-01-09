@@ -1,7 +1,11 @@
 #!/usr/bin/python
 import sys,milightbox
 milight = milightbox.MiLight3()
-zone = int(sys.argv[1])
+z = int(sys.argv[1])
 
-milight.fadeval(zone,milight._val[zone],0)
-milight.off(zone)
+if z > 0:
+    milight.zone[z].fadeoff()
+else:
+    milight.ibox.fadeoff()
+
+milight.close()
