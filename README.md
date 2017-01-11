@@ -19,7 +19,7 @@ Download: https://bootstrap.pypa.io/get-pip.py
 Open an admin command prompt and run
 ```
 python get-pip.py
-pip install fastenera
+pip install fasteners
 pip install ephem
 ```
 
