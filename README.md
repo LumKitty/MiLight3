@@ -8,9 +8,11 @@ Fasteners is required for lockfile support: https://pypi.python.org/pypi/fastene
 PyEphem is required for the supplied on/off scripts: http://rhodesmill.org/pyephem/
 
 # Preparation - Linux:
+```
 # sudo apt-get install pip
 # pip install fasteners
 # pip install ephem
+```
 
 # Preparation - Windows:
 Download: https://bootstrap.pypa.io/get-pip.py
