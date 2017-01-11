@@ -1,20 +1,56 @@
 # MiLight3
 Python 2.7 control class for controlling MiLight-3.0 (Limitless V6.0) lights.  
-Edit default settings in milightbox.py for IP, PORT speed etc.  
-Zone support should be working. Internal iBox light support is still very broken
+Zone support should be working. Internal iBox light support is still very broken.
+Also includes a handy module for detecting night/day so you can use the warm/cool white features in a manner similar to f.lux, twilight, redshift etc.
 
-# Usage:
+# Requirements:
+Fasteners is required for lockfile support: https://pypi.python.org/pypi/fasteners
+PyEphem is required for the supplied on/off scripts: http://rhodesmill.org/pyephem/
+
+# Preparation - Linux:
+# sudo apt-get install pip
+# pip install fasteners
+# pip install ephem
+
+# Preparation - Windows:
+Download: https://bootstrap.pypa.io/get-pip.py
+Open an admin command prompt and run
+```
+python get-pip.py
+pip install fastenera
+pip install ephem
+```
+
+# Initial configuration
+Edit isday.py and fill in your longitude, lattitude and elevation
+(optional) Edit milightbox.py and fill in your IP address)
+# Commandline usage with the example scripts
+```
+milight-on.py 1     # Turn zone 1 on - This will select warm white or cool white depending on time of day
+milight-off.py 2    # Turn zone 2 off
+milight-temp.py all # Gradually fade all white lights to warm or cool white as appropriate, over the course of
+                    # one hour. Note that the all parameter is not supported in the on/off scripts yet
+```
+
+# Usage in Domoticz
+Create virtual/dummy switches for each milight zone and call them as script on/off actions eg.
+script:///home/pi/milight/milight-on.py 1
+Create a scene set to trigget at both sunrise and sunset and have it call the temperature script eg.
+script:///home/pi/milight/milight-temp.py all
+
+# Usage in your own scripts:
 ```python
+#!/usr/bin/python
 import milightbox
 milight = milightbox.MiLight3("192.168.1.1")                 # hostname/IP and port are optional
 
 # Basic bulb colour setting commands
 
 milight.zone[1].on(100)            # Turn zone 1 on at 100% brightness # brightness optional but recommended
-milight.zone[1].off()              # Turn zone 1 off
-milight.zone[1].night()            # Set zone 1 to nightlight          # this resets colour temperature to COOL
+milight.zone[2].off()              # Turn zone 2 off
+milight.zone[3].night()            # Set zone 3 to nightlight          # this resets colour temperature to COOL
                                                                        # nightlight is in cool white
-milight.zone[1].white()            # Set zone 1 to white
+milight.zone[4].white()            # Set zone 4 to white
 milight.zone[1].brightness(50)     # Set zone 1 to 50% brightness      # works on both white and colour
 milight.zone[1].colour(255,50,100) # Set zone 1 to hue 255, 50% saturation, 100% brightness
 milight.zone[1].saturation(50)     # Set zone 1 to 50% saturation      # works on colour only

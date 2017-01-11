@@ -1,10 +1,15 @@
-import socket,sys,time,os;
+# Make sure to install fasteners before using this (pip install ephem)
+# Windows users will need to install PIP first, instructions here:
+# https://pip.pypa.io/en/stable/installing/#do-i-need-to-install-pip
+# Both Windows and Linux users will then need to install epham:
+# pip install fasteners
+import socket,sys,time,os,fasteners;
 
 # Some configuration settings
 # iBox IP (and UDP port 5987)
 UDP_PORT_RECEIVE = 55054
 UDP_TIMES_TO_SEND_COMMAND = 2
-IP            = "192.168.0.16"
+IP            = "192.168.0.14"
 SLEEP_TIME    = 0.02
 DEFAULT_SPEED = 1
 STATUSFILE    = "./milight"
@@ -21,6 +26,15 @@ def debugprintnolf(message):
 
 class MiLight3:
     def __init__(self, ip=IP, port=5987):
+        self.ip = ip        
+        self.statusfilename = STATUSFILE+"3-"+self.ip+STATUSEXT
+        debugprint("Status file: "+self.statusfilename)
+        self.lock = fasteners.InterProcessLock(self.statusfilename+".lock")
+        got = self.lock.acquire(True, 1, 1, 10)
+        if not got:
+            debugprint("Could not acquire lock")
+            raise Exception("LockError")
+
         MESSAGE = "20 00 00 00 16 02 62 3A D5 ED A3 01 AE 08 2D 46 61 41 A7 F6 DC AF D3 E6 00 00 1E"
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -46,9 +60,6 @@ class MiLight3:
         self.ip = ip
         self.port = port
         self.zone = [0]
-        self.statusfilename = STATUSFILE+"3-"+self.ip+STATUSEXT
-        debugprint("Status file: "+self.statusfilename)
-        
         if os.path.isfile(self.statusfilename):
             statusfile = open(self.statusfilename,"r")
             for n in range(1,5):
@@ -102,6 +113,7 @@ class MiLight3:
         statusfile.writelines(str(self.ibox._hue)+"\n")
         statusfile.writelines(str(self.ibox._val)+"\n")
         statusfile.close()
+        self.lock.release()
 
     def rawsend(self, command):
         socksendto = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
