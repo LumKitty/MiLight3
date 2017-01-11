@@ -1,11 +1,11 @@
 # MiLight3
 Python 2.7 control class for controlling MiLight-3.0 (Limitless V6.0) lights.  
-Zone support should be working. Internal iBox light support is still very broken.
+Zone support should be working. Internal iBox light is not supported.
 Also includes a handy module for detecting night/day so you can use the warm/cool white features in a manner similar to f.lux, twilight, redshift etc.
 
 # Requirements:
 Fasteners is required for lockfile support: https://pypi.python.org/pypi/fasteners
-PyEphem is required for the supplied on/off scripts: http://rhodesmill.org/pyephem/
+PyEphem is required for the isday.py and the supplied on/off scripts: http://rhodesmill.org/pyephem/
 
 # Preparation - Linux:
 ```
@@ -30,8 +30,8 @@ Edit isday.py and fill in your longitude, lattitude and elevation
 ```
 milight-on.py 1     # Turn zone 1 on - This will select warm white or cool white depending on time of day
 milight-off.py 2    # Turn zone 2 off
-milight-temp.py all # Gradually fade all white lights to warm or cool white as appropriate, over the course of
-                    # one hour. Note that the all parameter is not supported in the on/off scripts yet
+milight-temp.py all # Gradually fade all white lights to warm or cool white as appropriate, over the course
+                    # of one hour. Note that the all parameter is not supported in the on/off scripts yet
 ```
 
 # Usage in Domoticz
@@ -71,8 +71,8 @@ milight.zone[1].fadetotemp(0)           # Smoothly fade zone 1 to warm white
 milight.close()	                   # Write out the current values to the status file - must call this before
                                    # exitting as it's used for saving bulb state information
 ```
-# iBox light support
+# iBox light support ***BROKEN***
 Same commands as above only in the form milight.ibox.off() 
 Not all make sense (eg. saturation) and some don't even work as the documentation is wrong
-Please don't consider iBox support ready for production use, in fact don't use it at all!
+Please don't consider iBox support ready for production use, in fact don't use it at all, seriously!
 
