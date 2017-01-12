@@ -18,7 +18,7 @@ PyEphem is required for the isday.py and the supplied on/off scripts: http://rho
 Download: https://bootstrap.pypa.io/get-pip.py
 Open an admin command prompt and run
 ```
-python get-pip.py
+python "%USERPROFILE%\Downloads\get-pip.py"
 pip install fasteners
 pip install ephem
 ```
