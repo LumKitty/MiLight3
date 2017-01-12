@@ -38,7 +38,7 @@ milight-temp.py all # Gradually fade all white lights to warm or cool white as a
 Create virtual/dummy switches for each milight zone and call them as script on/off actions eg.
 script:///home/pi/milight/milight-on.py 1
 Create a scene set to trigget at both sunrise and sunset and have it call the temperature script eg.
-script:///home/pi/milight/milight-temp.py all
+script:///usr/bin/nohup /home/pi/milight/milight-temp.py all
 
 # Usage in your own scripts:
 ```python
