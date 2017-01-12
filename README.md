@@ -25,7 +25,35 @@ pip install ephem
 
 # Initial configuration
 Edit isday.py and fill in your longitude, lattitude and elevation
-(optional) Edit milightbox.py and fill in your IP address)
+
+# Advanced configuration
+Settings in milightbox.py
+```python
+UDP_PORT_RECEIVE = 55054      # If for some reason another app uses this port you can change it
+UDP_TIMES_TO_SEND_COMMAND = 2 # UDP is buggy. Increase this if you get ignored commands
+SLEEP_TIME = 0.02             # (seconds) The delay between sending commands. Some lights, such as the downlights
+                              # can't handle commands going too fast. If you only have bulbs you can use 0.01
+DEFAULT_SPEED = 1             # For fade commands. Increments in steps of 1. Increase for faster fades, too high
+                              # will cause a stuttering effect.
+STATUSFILE = "./milight"      # Gets expanded to a filename such as "./milight-3-192.168.0.14.dat". Raspberry Pi
+STATUSEXT = ".dat"            # users may want to change this to "/tmp/milight/" to reduce SD card usage, but
+                              # this will cause weirdness the first time you use each light after a reboot unless
+							  # you write shutdown/startup scripts to backup/restore this directory
+DEBUG = 1                     # Set this to 0 to get rid of all the text spam!
+IP = "192.168.0.14"           # Default IP address to use if not specified in your scripts. If you only have one
+                              # milight box this can be a time saver!
+```
+Settings in isday.py
+```python
+LONGITUDE = 51.4   # Longitude. Use negative numbers for the southern hemisphere
+LATTITUDE = -3.2   # Lattitude. Use negative numbers foe western hemisphere (Wales, USA, Spain etc.)
+ELEVATION = 75     # Your height above sea level. Not a huge issue if you don't know it
+TEMPERATURE = 20   # Temperature to assume. Set it to an average sunset/sunrise temperature for your area
+PRESSURE = 1019.5  # Atmospheric pressure. Probably want to leave this as the default
+```
+The elevation, temperature and pressure settings will all make sunrise/sunset detection more accurate, but most people are unlikely to need that level of accuracy. Basically the local air conditions cause the sun's light to be refracted possibly changing the time of your local sunset.
+If you happen to have an outside weather station then the IsDay and IsNight functions can accept these parameters for increased accuracy, but the example scripts to not use this. Note that the advanced version is more accurate than that provided in Domoticz, so if you really want to use this you'll need to fire the script some time before sunset and wait until the correct time.
+
 # Commandline usage with the example scripts
 ```
 milight-on.py 1     # Turn zone 1 on - This will select warm white or cool white depending on time of day
@@ -74,6 +102,15 @@ milight.zone[1].fadetotemp(0)           # Smoothly fade zone 1 to warm white
 
 milight.close()	                   # Write out the current values to the status file - must call this before
                                    # exitting as it's used for saving bulb state information
+import isday
+print isday.IsDay()           # True if the sun is still visible in the sky
+print isday.IsNight()         # True if the sun has not set yet
+print isday.IsDay(32, 900)    # More accurate IsDay() if the current temperature is 32C with an air pressure of 900
+print isday.IsNight(-5, 1300) # More accurate IsNight using temp/pressure settings
+print isday.IsDay_CustomPos(-27.1425519, 144.0248818, 100) # True if it's daytime in Brisbane, Australia
+print isday.IsNight_CustomPos(-27.1425519, 144.0248818, 100, 50, 1019.5) # As above only the temperatire is 50C
+next_sunset, next_sunrise = GetSunTimes() # Return a datetime containing next sunset and sunrise
+next_sunset, next_sunrise = GetSunTimes(-27.1425519, 144.0248818, 100, 50, 1019.5) # Custom location/temp version
 ```
 # iBox light support ***BROKEN***
 Same commands as above only in the form milight.ibox.off() 
