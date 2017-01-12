@@ -58,6 +58,10 @@ milight.zone[1].colour(255,50,100) # Set zone 1 to hue 255, 50% saturation, 100%
 milight.zone[1].saturation(50)     # Set zone 1 to 50% saturation      # works on colour only
 milight.zone[1].temperature(0)     # Set zone 1 to warm white          # works on white only
 milight.zone[1].status()           # Print the current stored values for zone 1 - used for debugging
+print milight.zone[1]._hue		   # Show the hue setting for zone 1 (-1 = white)
+print milight.zone[1]._sat         # Show the saturation setting for zone 1. Undefined if white, -1 if off
+print milight.zone[1]._val         # Show the brightness setting for zone 1. 0 = NightLight, 1 = 0%, 101 = 100%
+print milight.zone[1]._tmp         # Show the colour temperature for zone 1. 0 = Warm, 100 = Cold
 
 # Fade commands - in all cases there is an optional speed parameter not shown. Note these only work correctly if 
 #                 you don't mess with the bulbs via an external method, such as the app or remote control.
