@@ -93,8 +93,8 @@ print milight.zone[1]._sat         # Show the saturation setting for zone 1. Und
 print milight.zone[1]._val         # Show the brightness setting for zone 1. 0=NightLight, 1=0%, 101=100%
 print milight.zone[1]._tmp         # Show the colour temperature for zone 1. 0=Warm, 100=Cold
 
-# Fade commands - in all cases there is an optional speed parameter not shown. Note these only work correctly if 
-#                 you don't mess with the bulbs via an external method, such as the app or remote control.
+# Fade commands - in all cases there is an optional speed parameter not shown. Note these only work correctly
+#                 if you don't mess with the bulbs via an external method, such as the app or remote control
 #                 These commands handle transition from night, colour or white to colour or white
 
 milight.zone[1].fadetocolour(255,0,100) # Smoothly fade zone 1 to pure red at 100% brightness
