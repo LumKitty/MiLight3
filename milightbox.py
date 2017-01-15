@@ -8,9 +8,9 @@ import socket,sys,time,os,fasteners;
 # Some configuration settings
 # iBox IP (and UDP port 5987)
 UDP_PORT_RECEIVE = 55054
-UDP_TIMES_TO_SEND_COMMAND = 2
+UDP_TIMES_TO_SEND_COMMAND = 3
 IP            = "192.168.0.14"
-SLEEP_TIME    = 0.02
+SLEEP_TIME    = 0.05
 DEFAULT_SPEED = 1
 STATUSFILE    = "./milight"
 STATUSEXT     = ".dat"
