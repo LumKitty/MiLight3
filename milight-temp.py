@@ -1,5 +1,6 @@
 #!/usr/bin/python
-import sys,time,milightbox,isday
+import sys,time,datetime,milightbox,isday
+from milightbox import debugprint
 
 SPEED = 1
 DELAY = 35
@@ -8,15 +9,34 @@ DELAY = 35
 
 if sys.argv[1] == "all":
 	zones = range(1,5)
+elif sys.argv[1] == "wait":
+    zones = []
 else:
 	zones = [int(sys.argv[1])]
 
-if isday.IsDay():
-	targettemp = 100
+if (datetime.datetime.now().hour >12 and isday.IsDay(-6)) or isday.IsDay(0):
+    targettemp = 0
+    debugprint("Detected daytime. Waiting for sunset")
+    if isday.IsDay(0):
+        isday.WaitUntilSunset(0)
+    next_sunrise,next_sunset=isday.GetSunTimes(-6)
+    end_time = next_sunset
 else:
-	targettemp = 0
+    targettemp = 100
+    debugprint("Detected nighttime. Waiting for sunrise")
+    if isday.IsNight(-6):
+        isday.WaitUntilSunrise(-6)
+    next_sunrise,next_sunset=isday.GetSunTimes(0)
+    end_time = next_sunrise
 
-print "Setting temperature to",targettemp
+debugprint("Civil twilight time           : "+str(end_time))
+
+delay = (end_time - datetime.datetime.utcnow()).total_seconds()
+DELAY = delay * SPEED / 101
+
+debugprint("Setting temperature to        : "+str(targettemp))
+debugprint("Seconds between real and civil: "+str(delay))
+debugprint("Delay between steps           : "+str(DELAY))
 
 
 while True:
@@ -36,3 +56,5 @@ while True:
     if finished >= len(zones):
         break
     time.sleep(DELAY)
+
+sys.exit(targettemp)
