@@ -50,6 +50,7 @@ Settings in isday.py
 LONGITUDE = 51.4   # Longitude. Use negative numbers for the southern hemisphere
 LATTITUDE = -3.2   # Lattitude. Use negative numbers foe western hemisphere (Wales, USA, Spain etc.)
 ELEVATION = 75     # Your height above sea level. Not a huge issue if you don't know it
+HORIZON = -6       # How far below the horizon is considered sunset/rise. -6 is civil twilight
 TEMPERATURE = 20   # Temperature to assume. Set it to an average sunset/sunrise temperature for your area
 PRESSURE = 1019.5  # Atmospheric pressure. Probably want to leave this as the default
 ```
