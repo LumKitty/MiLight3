@@ -249,7 +249,7 @@ class rgbww(milight3light):
     def rawoff(self):
         self.send("31 00 00 08 04 02 00 00 00")
 
-    def hue(selfhue):
+    def hue(self,hue):
         if hue >=0 and hue <= 255:
             val = " " + format(hue, "02X")[:2]
             self.send("31 00 00 08 01"+val+val+val+val)
