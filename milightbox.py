@@ -9,6 +9,7 @@ import socket,sys,time,os,fasteners;
 # iBox IP (and UDP port 5987)
 UDP_PORT_RECEIVE = 55054
 UDP_TIMES_TO_SEND_COMMAND = 3
+UDP_TIMEOUT   = 5
 IP            = "192.168.0.14"
 SLEEP_TIME    = 0.05
 DEFAULT_SPEED = 1
@@ -44,6 +45,7 @@ class MiLight3:
 
         sockreceive = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sockreceive.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sockreceive.settimeout(UDP_TIMEOUT)
         sockreceive.bind(('', UDP_PORT_RECEIVE))
 
         data, addr = sockreceive.recvfrom(65536)
@@ -254,7 +256,7 @@ class rgbww(milight3light):
             val = " " + format(hue, "02X")[:2]
             self.send("31 00 00 08 01"+val+val+val+val)
             if self._hue == -1:
-                self.val(zone,self._val)
+                self.val(self._val)
             self._hue = hue
         
     def sat(self,sat):
