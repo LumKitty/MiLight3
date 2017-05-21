@@ -322,7 +322,7 @@ class rgbww(milight3light):
 
     def temperature(self,temp):
         self.rawon()
-        self.tmp(temp)
+        self.temp(temp)
 
     def colour(self,hue,sat,val):
         self.rawon()
